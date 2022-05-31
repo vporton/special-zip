@@ -107,7 +107,7 @@ async fn almost_main() -> Result<(), MyError> {
         let opts =
             EntryOptions::new(
                 entry.path().to_str().ok_or::<MyError>(WrongFilenameError::new().into())?.to_string(),
-                Compression::Stored
+                Compression::Stored,
             )
                 .extra(Vec::from([0u8; 32]));
 
