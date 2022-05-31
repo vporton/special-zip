@@ -17,7 +17,7 @@ struct Args {
 
     /// Input directory
     #[clap(short, long, default_value = ".")]
-    directory: String,
+    input: String,
 }
 
 #[derive(Debug)]
@@ -92,13 +92,13 @@ async fn almost_main() -> Result<(), MyError> {
     let mut file = File::create(args.output).await?;
     let mut writer = ZipFileWriter::new(&mut file);
 
-    for entry in WalkDir::new(args.directory.clone()).into_iter() {
+    for entry in WalkDir::new(args.input.clone()).into_iter() {
         let entry = entry?;
         // if entry.path_is_symlink() // FIXME
         if entry.file_type().is_dir() {
             continue;
         }
-        let mut file = File::open(Path::new(args.directory.as_str()).join(entry.path())).await?; // TODO: Compress brotly
+        let mut file = File::open(Path::new(args.input.as_str()).join(entry.path())).await?;
 
         let file_reader = tokio::io::BufReader::new(&mut file);
         let compressed_reader =
