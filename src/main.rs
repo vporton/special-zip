@@ -1,12 +1,11 @@
-use std::fmt::{Display, Formatter, write};
+use std::fmt::{Display, Formatter};
 use std::path::Path;
 use async_compression::Level;
-use async_compression::tokio::write::BrotliEncoder;
 use async_zip::Compression;
 use async_zip::error::ZipError;
 use async_zip::write::{EntryOptions, ZipFileWriter};
 use tokio::fs::File;
-use tokio::io::{AsyncWriteExt, BufReader};
+use tokio::io::BufReader;
 use clap::Parser;
 use walkdir::WalkDir;
 
@@ -93,7 +92,7 @@ async fn almost_main() -> Result<(), MyError> {
     let mut file = File::create(args.output).await?;
     let mut writer = ZipFileWriter::new(&mut file);
 
-    for entry in WalkDir::new(args.directory).into_iter() {
+    for entry in WalkDir::new(args.directory.clone()).into_iter() {
         let entry = entry?;
         // if entry.path_is_symlink() // FIXME
         if entry.file_type().is_dir() {
@@ -101,26 +100,23 @@ async fn almost_main() -> Result<(), MyError> {
         }
         let mut file = File::open(Path::new(args.directory.as_str()).join(entry.path())).await?; // TODO: Compress brotly
 
-        // This does not work because `futures_io::AsyncBufRead` instead of a Tokio type.
-        let mut compressed_reader =
-            async_compression::tokio::bufread::BrotliEncoder::with_quality(&mut tokio::io::BufReader::new(&mut file), Level::Best);
+        let file_reader = tokio::io::BufReader::new(&mut file);
+        let compressed_reader =
+            async_compression::tokio::bufread::BrotliEncoder::with_quality(file_reader, Level::Best);
 
         let opts =
             EntryOptions::new(
-                entry.path().to_str().ok_or(Err(WrongFilenameError::new()).into())?.to_string(),
+                entry.path().to_str().ok_or::<MyError>(WrongFilenameError::new().into())?.to_string(),
                 Compression::Stored
             )
                 .extra(Vec::from([0u8; 32]));
 
         let mut entry_writer = writer.write_entry_stream(opts).await?;
-        // tokio::io::copy(&mut BufReader::new(compressed_reader.into()), &mut entry_writer);
-        loop {
-
-        }
+        tokio::io::copy(&mut BufReader::new(compressed_reader), &mut entry_writer).await?;
 
         entry_writer.close().await?;
-        writer.close().await?;
     }
+    writer.close().await?;
 
     Ok(())
 }
