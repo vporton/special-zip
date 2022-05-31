@@ -8,3 +8,7 @@ edition = "2021"
 [dependencies]
 async_zip = "0.0.7"
 tokio = { version = "1.18.2", features = ["macros", "rt-multi-thread"] }
+clap = { version = "3.1.18", features = [ "derive" ] }
+walkdir = "2"
+#brotli = "3.3.4"
+async-compression = { version = "0.3.14", features = ["tokio", "brotli"] }
