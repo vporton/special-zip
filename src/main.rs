@@ -104,6 +104,18 @@ async fn almost_main() -> Result<(), MyError> {
         let compressed_reader =
             async_compression::tokio::bufread::BrotliEncoder::with_quality(file_reader, Level::Best);
 
+        // TODO: Is Rust able to optimize this?
+        let mut zero_for_hash = [
+            &[
+                0x18u8, 0x00u8, // Record Management Controls
+                0u8, 0u8, // size placeholder
+                0x01u8, 0x00u8, // kind of placeholder
+                32u8, 0u8, // size of hash
+            ] as &[u8],
+            &[0u8; 32] as &[u8],
+        ].concat();
+        zero_for_hash[2] = (zero_for_hash.len() % 256) as u8;
+        zero_for_hash[3] = (zero_for_hash.len() / 256) as u8;
         let opts =
             EntryOptions::new(
                 entry.path().to_str().ok_or::<MyError>(WrongFilenameError::new().into())?.to_string(),
